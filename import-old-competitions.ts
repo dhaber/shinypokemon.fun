@@ -1,6 +1,7 @@
 import CREDS from './service-account-creds.json';
 import {playersData} from './src/data/players.data';
-import { ICompetitionEntity, IPlayerEntities, IPlayerEntity, IPointEntity } from "store/reducers";
+import {pokemonData} from './src/data/pokemon.data';
+import { ICompetitionEntity, IPlayerEntities, IPlayerEntity, IPointEntity, IPokemonEntities } from "store/reducers";
 import { GoogleSpreadsheet, GoogleSpreadsheetCell, GoogleSpreadsheetCellErrorValue, GoogleSpreadsheetWorksheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 import { v4 as uuid } from 'uuid';
@@ -9,10 +10,11 @@ import * as util from 'util';
 
 //const SHEET_ID:string = '1wgp9pUMUkJeUD-Dv1OlOlc7Hw8Fa9T--kggVaYHKMU8';
 const SHEET_ID:string = '1wMLMhYRttTCD-BtrnKfLeEcgaKFaU_WCYNYrqa3sKpU';
-const SLOWBRO_ID:string = '24e010f3-7f1e-49c0-a63f-5e1605d5b8ff';
+const MISSING_NO_ID:string = 'f77b6663-537d-469c-bd2f-0e4347bb5ca3';
 
 const COMPETITIONS = [];
 const EXISTING_PLAYERS_BY_DISPLAYNAME:IPlayerEntities = {};
+const POKEMON_BY_NAME:IPokemonEntities = {};
 const DISPLAYNAME_MAP = new Map<string, string>([
     ['heroofice18', 'Brandon Heroice18'],
     ['bdewalt', 'Bobby'],
@@ -40,6 +42,13 @@ type NameAttributes = {
     realName: string,
     displayName: string
 };
+
+function loadPokemon() {
+    for (const id of Object.getOwnPropertyNames(pokemonData)) {
+        let pokemon = pokemonData[id];
+        POKEMON_BY_NAME[pokemon.data.attributes.name.toLowerCase()] = pokemon;
+    }
+}
 
 function parsePlayers() {
     for (const id of Object.getOwnPropertyNames(playersData)) {
@@ -175,6 +184,10 @@ function getDates(value: string, year: string) {
 
 }
 
+function getPokemon(note:string) {
+    return MISSING_NO_ID;
+}
+
 async function addCompetitions(sheet:GoogleSpreadsheetWorksheet, players: Array<IPlayerEntity>, year: string) {
     try {
         fs.mkdirSync(`./src/data/points/${year}`);
@@ -218,8 +231,8 @@ export const competitionsData${year}: { [id: string]: ICompetitionEntity } = {
                     validPokemon: [
                         {
                             data: {
-                                // Always Slowbro 
-                                id: SLOWBRO_ID,
+                                // Always Missing No 
+                                id: MISSING_NO_ID,
                                 type: 'pokemon'
                             }
                         }                
@@ -259,6 +272,8 @@ export const pointsData${year}_${column - 1}:IPointEntities = {
                 lastWinner = players[p].data.id;
             };
 
+            let pokemonId = getPokemon(cell.note);
+
             for (let i=0 ; i < shinies; i++) {
                 let point: IPointEntity = {
                     data: {
@@ -270,6 +285,7 @@ export const pointsData${year}_${column - 1}:IPointEntities = {
                             firstCatch: firstCatch,
                             game: null,
                             method: null,
+                            oldSystemPoint: true
                         },
                         relationships: {
                             competition: {
@@ -286,7 +302,7 @@ export const pointsData${year}_${column - 1}:IPointEntities = {
                             },
                             pokemon: {
                                 data: {
-                                    id: SLOWBRO_ID,
+                                    id: pokemonId,
                                     type: 'pokemon',
                                 },
                             },
@@ -336,6 +352,7 @@ async function addYear(sheet:GoogleSpreadsheetWorksheet) {
 
 
 async function main() {
+    loadPokemon();
     parsePlayers();
 
     const auth:JWT = new JWT( {
