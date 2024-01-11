@@ -184,11 +184,47 @@ function getDates(value: string, year: string) {
 
 }
 
-function getPokemon(note:string) {
+function getPokemonFuzzy(name:string) {
+    let pokemon = POKEMON_BY_NAME[name];
+    if (!!pokemon) {
+        return pokemon;
+    }
+
+    pokemon = POKEMON_BY_NAME[name.replace("-g", " (galarian)")];
+    if (!!pokemon) {
+        return pokemon;        
+    }
+
+    pokemon = POKEMON_BY_NAME[name.replace("-a", " (alolan)")];
+    if (!!pokemon) {
+        return pokemon;        
+    }
+
+    pokemon = POKEMON_BY_NAME[name.split(" ")[0]];
+    if (!!pokemon) {
+        return pokemon;
+    }
+
+    return null;
+}
+
+function getPokemon(note:string|undefined) {
+    if (note == undefined) {
+        return MISSING_NO_ID;
+    }
+
+    let lines = note.split(/[\r\n]+/);
+    for (let line of lines) {
+        line = line.trim().toLowerCase();
+        let pokemon = getPokemonFuzzy(line);
+        if (!!pokemon) {
+            return pokemon.data.id;
+        }
+    }
     return MISSING_NO_ID;
 }
 
-async function addCompetitions(sheet:GoogleSpreadsheetWorksheet, players: Array<IPlayerEntity>, year: string) {
+function addCompetitions(sheet:GoogleSpreadsheetWorksheet, players: Array<IPlayerEntity>, year: string) {
     try {
         fs.mkdirSync(`./src/data/points/${year}`);
     } catch (e: any) {
@@ -260,7 +296,7 @@ export const pointsData${year}_${column - 1}:IPointEntities = {
 `;
         for (let p:number = 0; p < players.length; p++) {
             let row = p + 2;
-            let cell = await sheet.getCell(row, column);
+            let cell = sheet.getCell(row, column);
             let shinies:number = cell.value as number;
             if (!shinies) {
                 continue;
